@@ -8,6 +8,10 @@ import java.util.regex.Pattern;
 
 @FunctionalInterface
 public interface Lexer<T> {
+    static Lexer<Short> number() {
+        return regex("\\d+").map(Short::valueOf);
+    }
+
     default T parse(CharSequence in) throws ParseException {
         return tryParse(in).parsed();
     }

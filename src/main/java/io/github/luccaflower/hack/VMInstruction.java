@@ -1,7 +1,7 @@
 package io.github.luccaflower.hack;
 
-public sealed interface VMInstruction permits VMInstruction.PushConstant, VMInstruction.PushSegment,
-        VMInstruction.AddConst, VMInstruction.AddVar {
+public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.PushConstant, VMInstruction.PushSegment,
+        VMInstruction.Add {
     record PushConstant(short val) implements VMInstruction {
         @Override
         public String toString() {
@@ -57,10 +57,111 @@ public sealed interface VMInstruction permits VMInstruction.PushConstant, VMInst
                     """.formatted(val, segment);
         }
     }
-    record AddConst(short val) implements VMInstruction {}
-    record AddVar(short val) implements VMInstruction {}
+    record Add() implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @SP
+                    AM=M-1
+                    M=M+D
+                    @SP
+                    M=M+1
+                    """;
+        }
+    }
 
-    public enum Segment {
+    record Subtract() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @SP
+                    AM=M-1
+                    M=M-D
+                    @SP
+                    M=M+1
+                    """;
+        }
+    }
+
+    record Negative() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=0-M
+                    """;
+        }
+    }
+
+    record And() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @SP
+                    AM=M-1
+                    M=M&D
+                    """;
+        }
+    }
+
+    record Or() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @SP
+                    AM=M-1
+                    M=M|D
+                    """;
+        }
+    }
+
+    record Equal() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R13
+                    M=D
+                    @SP
+                    AM=M-1
+                    @R13
+                    D=M-D
+                    @EQUAL
+                    D;JEQ
+                    @NOT_EQUAL
+                    0;JMP
+                    (EQUAL)
+                    D=-1
+                    @END_EQUAL
+                    0;JMP
+                    (NOT_EQUAL)
+                    D=0
+                    (END_EQUAL)
+                    """;
+        }
+    }
+    record Null() implements VMInstruction {
+        @Override
+        public String toString() {
+            return "";
+        }
+    }
+    enum Segment {
         LCL;
         static Segment from(String name) {
             return switch (name) {

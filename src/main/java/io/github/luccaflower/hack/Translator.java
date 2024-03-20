@@ -32,7 +32,7 @@ public class Translator {
     public static String assemble(BufferedReader input) throws Lexer.ParseException {
         String assembly;
         var vmCode = input.lines().collect(Collectors.joining("\n"));
-        var lexed = VMLexer.LEXER.parse(vmCode);
+        var lexed = new VMLexer().parse(vmCode);
         assembly = new VMParser(lexed).toString();
         return assembly;
     }

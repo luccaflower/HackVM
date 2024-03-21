@@ -1,7 +1,6 @@
 package io.github.luccaflower.hack;
 
-public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.PushConstant, VMInstruction.PushSegment,
-        VMInstruction.Add {
+public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PushConstant, VMInstruction.PushSegment, VMInstruction.Subtract {
     record PushConstant(short val) implements VMInstruction {
         @Override
         public String toString() {
@@ -30,7 +29,7 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     A=M
                     M=D
                     @SP
-                    M=M-1
+                    M=M+1
                     """.formatted(val, segment);
         }
     }
@@ -47,10 +46,8 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     @R13
                     M=D
                     @SP
-                    A=M
+                    AM=M-1
                     D=M
-                    @SP
-                    M=M-1
                     @R13
                     A=M
                     M=D
@@ -73,7 +70,7 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
         }
     }
 
-    record Subtract() {
+    record Subtract() implements VMInstruction {
         @Override
         public String toString() {
             return """
@@ -82,25 +79,28 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     D=M
                     @SP
                     AM=M-1
-                    M=M-D
+                    M=D-M
                     @SP
                     M=M+1
                     """;
         }
     }
 
-    record Negative() {
+    record Negative() implements VMInstruction {
         @Override
         public String toString() {
             return """
                     @SP
                     AM=M-1
-                    D=0-M
+                    D=!M
+                    M=D+1
+                    @SP
+                    M=M+1
                     """;
         }
     }
 
-    record And() {
+    record And() implements VMInstruction {
         @Override
         public String toString() {
             return """
@@ -110,11 +110,13 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     @SP
                     AM=M-1
                     M=M&D
+                    @SP
+                    M=M+1
                     """;
         }
     }
 
-    record Or() {
+    record Or() implements VMInstruction {
         @Override
         public String toString() {
             return """
@@ -124,11 +126,13 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     @SP
                     AM=M-1
                     M=M|D
+                    @SP
+                    M=M+1
                     """;
         }
     }
 
-    record Equal() {
+    record Equal(int count) implements VMInstruction{
         @Override
         public String toString() {
             return """
@@ -139,26 +143,110 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
                     M=D
                     @SP
                     AM=M-1
+                    D=M
                     @R13
-                    D=M-D
-                    @EQUAL
+                    D=D-M
+                    @EQUAL_{COUNT}
                     D;JEQ
-                    @NOT_EQUAL
+                    @NOT_EQUAL_{COUNT}
                     0;JMP
-                    (EQUAL)
+                    (EQUAL_{COUNT})
                     D=-1
-                    @END_EQUAL
+                    @END_EQUAL_{COUNT}
                     0;JMP
-                    (NOT_EQUAL)
+                    (NOT_EQUAL_{COUNT})
                     D=0
-                    (END_EQUAL)
-                    """;
+                    (END_EQUAL_{COUNT})
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.replace("{COUNT}", String.valueOf(count));
+        }
+    }
+    record GreaterThan(int count) implements VMInstruction{
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R13
+                    M=D
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R13
+                    D=D-M
+                    @GT_{COUNT}
+                    D;JGT
+                    @NOT_GT_{COUNT}
+                    0;JMP
+                    (GT_{COUNT})
+                    D=-1
+                    @END_GT_{COUNT}
+                    0;JMP
+                    (NOT_GT_{COUNT})
+                    D=0
+                    (END_GT_{COUNT})
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.replace("{COUNT}", String.valueOf(count));
+        }
+    }
+    record LessThan(int count) implements VMInstruction{
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R13
+                    M=D
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R13
+                    D=D-M
+                    @LT_{COUNT}
+                    D;JLT
+                    @NOT_LT_{COUNT}
+                    0;JMP
+                    (LT_{COUNT})
+                    D=-1
+                    @END_LT_{COUNT}
+                    0;JMP
+                    (NOT_LT_{COUNT})
+                    D=0
+                    (END_LT_{COUNT})
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.replace("{COUNT}", String.valueOf(count));
         }
     }
     record Null() implements VMInstruction {
         @Override
         public String toString() {
             return "";
+        }
+    }
+    record Not() implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    M=!M
+                    @SP
+                    M=M+1
+                    """;
         }
     }
     enum Segment {
@@ -170,4 +258,5 @@ public sealed interface VMInstruction permits VMInstruction.Null, VMInstruction.
             };
         }
     }
+
 }

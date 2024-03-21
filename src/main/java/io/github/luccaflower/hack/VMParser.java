@@ -18,6 +18,9 @@ public class VMParser {
 
     public String toString() {
         return init
-                .concat(instructions.stream().map(VMInstruction::toString).collect(Collectors.joining("\n")));
+                .concat(instructions.stream().map(VMInstruction::toString).collect(Collectors.joining("\n")))
+                .lines()
+                .filter(l -> !l.isBlank())
+                .collect(Collectors.joining("\n"));
     }
 }

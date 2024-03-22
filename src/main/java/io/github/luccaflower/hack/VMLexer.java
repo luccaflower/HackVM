@@ -10,22 +10,33 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
 
     private final Lexer<VMInstruction> comment = Lexer.regex("\\s*").skipAnd(Lexer.string("//")).skipAnd(Lexer.regex(".*")).andSkip(Lexer.eol())
             .map(ignored -> new VMInstruction.Null());
-    private final Lexer<VMInstruction> push_constant = Lexer.string("push ")
+    private final Lexer<VMInstruction> pushConstant = Lexer.string("push ")
             .skipAnd(Lexer.string("constant ").skipAnd(Lexer.number()).andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
                     .map(VMInstruction.PushConstant::new));
-    private final Lexer<VMInstruction> push_segment = Lexer.regex("[a-z]+\\s").andSkip(Lexer.eol())
+    private final Lexer<VMInstruction> pushSegment = Lexer.string("push ")
+            .skipAnd(Lexer.regex("[a-z]+\\s"))
+            .andSkip(Lexer.eol())
             .map(VMInstruction.Segment::from)
             .andThen(Lexer.number())
             .andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
             .map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
 
-    private final Lexer<VMInstruction> add = Lexer.regex("\\w{2,3}").andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
+    private final Lexer<VMInstruction> popSegment = Lexer.string("pop")
+            .skipAnd(Lexer.regex("[a-z]+\\s"))
+            .andSkip(Lexer.eol())
+            .map(VMInstruction.Segment::from)
+            .andThen(Lexer.number())
+            .andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
+            .map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
+
+    private final Lexer<VMInstruction> arithmetic = Lexer.regex("\\w{2,3}").andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
             .map(this::from);
-    private final Lexer<VMInstruction> push = push_constant
-            .or(push_segment);
+    private final Lexer<VMInstruction> push = pushConstant
+            .or(pushSegment);
 
 
-    private final Lexer<Queue<VMInstruction>> lexer = push.or(add).or(comment)
+
+    private final Lexer<Queue<VMInstruction>> lexer = push.or(arithmetic).or(comment)
             .repeating()
             .andSkip(Lexer.eof());
 

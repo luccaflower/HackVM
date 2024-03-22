@@ -1,6 +1,6 @@
 package io.github.luccaflower.hack;
 
-public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PushConstant, VMInstruction.PushSegment, VMInstruction.Subtract {
+public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PopSegment, VMInstruction.PushConstant, VMInstruction.PushSegment, VMInstruction.Subtract {
     record PushConstant(short val) implements VMInstruction {
         @Override
         public String toString() {
@@ -34,7 +34,7 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         }
     }
 
-    record PopSegment(Segment segment, short val) {
+    record PopSegment(Segment segment, short val) implements VMInstruction {
         @Override
         public String toString() {
             return """
@@ -79,7 +79,7 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     D=M
                     @SP
                     AM=M-1
-                    M=D-M
+                    M=M-D
                     @SP
                     M=M+1
                     """;
@@ -250,10 +250,16 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         }
     }
     enum Segment {
-        LCL;
+        LCL,
+        ARG,
+        THIS,
+        THAT;
         static Segment from(String name) {
             return switch (name) {
                 case "local" -> LCL;
+                case "argument" -> ARG;
+                case "this" -> THIS;
+                case "that" -> THAT;
                 default -> throw new IllegalStateException("Unexpected value: " + name);
             };
         }

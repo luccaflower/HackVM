@@ -14,12 +14,13 @@ public class Translator {
         if (!filename.endsWith(".vm")) {
             throw new IllegalArgumentException("Invalid filename");
         }
+        String name = filename.replace(".vm", "");
         String machineCode;
         try (var input = new BufferedReader(new InputStreamReader(new FileInputStream(filename)))) {
-            machineCode = assemble(input);
+            machineCode = assemble(input, name);
         }
 
-        String outputFilename = filename.replace(".vm", ".asm");
+        String outputFilename = name + ".asm";
         File outputFile = new File(outputFilename);
         if (outputFile.exists() && !(outputFile.delete())) {
             throw new IllegalStateException("Failed to overwrite existing hack file");
@@ -29,11 +30,11 @@ public class Translator {
         }
     }
 
-    public static String assemble(BufferedReader input) throws Lexer.ParseException {
+    public static String assemble(BufferedReader input, String name) throws Lexer.ParseException {
         String assembly;
         var vmCode = input.lines().collect(Collectors.joining("\n"));
-        var lexed = new VMLexer().parse(vmCode);
-        assembly = new VMParser(lexed).toString();
+        var lexed = new VMLexer(name).parse(vmCode);
+        assembly = new VMCodeWriter(lexed).write();
         return assembly;
     }
 

@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class VMLexerTest {
 
-    Lexer<Queue<VMInstruction>> lexer = new VMLexer();
+    Lexer<Queue<VMInstruction>> lexer = new VMLexer("thing");
     @Test
     void parsePushConst() throws Lexer.ParseException {
         assertThat(lexer.parse("push constant 1")).first().isEqualTo(new VMInstruction.PushConstant((short) 1));

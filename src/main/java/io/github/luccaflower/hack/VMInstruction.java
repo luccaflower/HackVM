@@ -1,6 +1,6 @@
 package io.github.luccaflower.hack;
 
-public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PopSegment, VMInstruction.PushConstant, VMInstruction.PushSegment, VMInstruction.Subtract {
+public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PopPointer, VMInstruction.PopSegment, VMInstruction.PopStatic, VMInstruction.PopTemp, VMInstruction.PushConstant, VMInstruction.PushPointer, VMInstruction.PushSegment, VMInstruction.PushStatic, VMInstruction.PushTemp, VMInstruction.Subtract {
     record PushConstant(short val) implements VMInstruction {
         @Override
         public String toString() {
@@ -23,7 +23,7 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     @%d
                     D=A
                     @%s
-                    A=A+D
+                    A=M+D
                     D=M
                     @SP
                     A=M
@@ -54,6 +54,107 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     """.formatted(val, segment);
         }
     }
+
+    enum Segment {
+        LCL,
+        ARG,
+        THIS,
+        THAT;
+        static Segment from(String name) {
+            return switch (name.strip()) {
+                case "local" -> LCL;
+                case "argument" -> ARG;
+                case "this" -> THIS;
+                case "that" -> THAT;
+                default -> throw new IllegalStateException("Unexpected value: " + name);
+            };
+        }
+    }
+
+    record PushTemp(short val) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @R%d
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.formatted(5+val);
+        }
+    }
+
+    record PopTemp(short val) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @R%d
+                    M=D
+                    """.formatted(5+val);
+        }
+    }
+    record PushStatic(String name, short val) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @%s.%d
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.formatted(name, val);
+        }
+    }
+
+    record PopStatic(String name, short val) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @%s.%d
+                    M=D
+                    """.formatted(name, val);
+        }
+    }
+
+    record PushPointer(short val) implements VMInstruction {
+
+        @Override
+        public String toString() {
+            return """
+                    @%d
+                    D=M
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """.formatted(3+val);
+        }
+    }
+
+    record PopPointer(short val) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    @%d
+                    M=D
+                    """.formatted(3+val);
+        }
+    }
+
     record Add() implements VMInstruction {
         @Override
         public String toString() {
@@ -247,21 +348,6 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     @SP
                     M=M+1
                     """;
-        }
-    }
-    enum Segment {
-        LCL,
-        ARG,
-        THIS,
-        THAT;
-        static Segment from(String name) {
-            return switch (name) {
-                case "local" -> LCL;
-                case "argument" -> ARG;
-                case "this" -> THIS;
-                case "that" -> THAT;
-                default -> throw new IllegalStateException("Unexpected value: " + name);
-            };
         }
     }
 

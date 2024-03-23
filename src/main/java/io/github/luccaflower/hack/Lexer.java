@@ -76,7 +76,7 @@ public interface Lexer<T> {
         return in -> {
             try {
                 return tryParse(in);
-            } catch (ParseException ignored) {
+            } catch (Exception ignored) {
                 return other.tryParse(in);
             }
         };

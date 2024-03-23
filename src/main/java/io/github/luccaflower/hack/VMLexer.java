@@ -2,43 +2,73 @@ package io.github.luccaflower.hack;
 
 import java.util.Queue;
 
+import static io.github.luccaflower.hack.Lexer.*;
+import static io.github.luccaflower.hack.Lexer.string;
+
 public class VMLexer implements Lexer<Queue<VMInstruction>> {
     private int eqCount = 0;
     private int ltCount = 0;
     private int gtCount = 0;
-    public VMLexer() {}
-
-    private final Lexer<VMInstruction> comment = Lexer.regex("\\s*").skipAnd(Lexer.string("//")).skipAnd(Lexer.regex(".*")).andSkip(Lexer.eol())
-            .map(ignored -> new VMInstruction.Null());
-    private final Lexer<VMInstruction> pushConstant = Lexer.string("push ")
-            .skipAnd(Lexer.string("constant ").skipAnd(Lexer.number()).andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
-                    .map(VMInstruction.PushConstant::new));
-    private final Lexer<VMInstruction> pushSegment = Lexer.string("push ")
-            .skipAnd(Lexer.regex("[a-z]+\\s"))
-            .andSkip(Lexer.eol())
-            .map(VMInstruction.Segment::from)
-            .andThen(Lexer.number())
-            .andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
-            .map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
-
-    private final Lexer<VMInstruction> popSegment = Lexer.string("pop")
-            .skipAnd(Lexer.regex("[a-z]+\\s"))
-            .andSkip(Lexer.eol())
-            .map(VMInstruction.Segment::from)
-            .andThen(Lexer.number())
-            .andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
-            .map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
-
-    private final Lexer<VMInstruction> arithmetic = Lexer.regex("\\w{2,3}").andSkip(Lexer.eol().or(comment.map(VMInstruction::toString)))
-            .map(this::from);
-    private final Lexer<VMInstruction> push = pushConstant
-            .or(pushSegment);
-
-
-
-    private final Lexer<Queue<VMInstruction>> lexer = push.or(arithmetic).or(comment)
-            .repeating()
-            .andSkip(Lexer.eof());
+    private final Lexer<Queue<VMInstruction>> lexer;
+    public VMLexer(String name) {
+        Lexer<VMInstruction> comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*")).andSkip(eol())
+                .map(ignored -> new VMInstruction.Null());
+        Lexer<VMInstruction> pushConstant = string("push ")
+                .skipAnd(string("constant ")
+                        .skipAnd(number())
+                        .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                        .map(VMInstruction.PushConstant::new));
+        Lexer<VMInstruction> pushSegment = string("push ")
+                .skipAnd(regex("[a-z]+\\s"))
+                .map(VMInstruction.Segment::from)
+                .andThen(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
+        Lexer<VMInstruction> pushTemp = string("push ")
+                .skipAnd(string("temp "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(VMInstruction.PushTemp::new);
+        Lexer<VMInstruction> pushStatic = string("push ")
+                .skipAnd(string("static "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(i -> new VMInstruction.PushStatic(name, i));
+        Lexer<VMInstruction> pushPointer = string("push ")
+                .skipAnd(string("pointer "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(VMInstruction.PushPointer::new);
+        Lexer<VMInstruction> push = pushConstant.or(pushSegment).or(pushTemp).or(pushStatic).or(pushPointer);
+        Lexer<VMInstruction> popSegment = string("pop ")
+                .skipAnd(regex("[a-z]+\\s"))
+                .map(VMInstruction.Segment::from)
+                .andThen(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
+        Lexer<VMInstruction> popTemp = string("pop ")
+                .skipAnd(string("temp "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(VMInstruction.PopTemp::new);
+        Lexer<VMInstruction> popStatic = string("pop ")
+                .skipAnd(string("static "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(i -> new VMInstruction.PopStatic(name, i));
+        Lexer<VMInstruction> popPointer = string("pop ")
+                .skipAnd(string("pointer "))
+                .skipAnd(number())
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(VMInstruction.PopPointer::new);
+        Lexer<VMInstruction> pop = popSegment.or(popTemp).or(popStatic).or(popPointer);
+        Lexer<VMInstruction> arithmetic = regex("\\w{2,3}")
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .map(this::from);
+        lexer = push.or(pop).or(arithmetic).or(comment)
+                .repeating()
+                .andSkip(eof());
+    }
 
     @Override
     public Parsed<Queue<VMInstruction>> tryParse(CharSequence in) throws ParseException {

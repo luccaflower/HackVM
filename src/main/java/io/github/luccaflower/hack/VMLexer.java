@@ -11,41 +11,41 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
     private int gtCount = 0;
     private final Lexer<Queue<VMInstruction>> lexer;
     public VMLexer(String name) {
-        Lexer<VMInstruction> comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*")).andSkip(eol())
-                .map(ignored -> new VMInstruction.Null());
-        Lexer<VMInstruction> pushConstant = string("constant ")
+        var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*")).andSkip(eol())
+                .<VMInstruction>map(ignored -> new VMInstruction.Null());
+        var pushConstant = string("constant ")
                 .skipAnd(number())
-                .map(VMInstruction.PushConstant::new);
-        Lexer<VMInstruction> pushSegment = regex("[a-z]+\\s")
+                .<VMInstruction>map(VMInstruction.PushConstant::new);
+        var pushSegment = regex("[a-z]+\\s")
                 .map(VMInstruction.Segment::from)
                 .andThen(number())
-                .map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
-        Lexer<VMInstruction> pushTemp = string("temp ")
+                .<VMInstruction>map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
+        var pushTemp = string("temp ")
                 .skipAnd(number())
-                .map(VMInstruction.PushTemp::new);
-        Lexer<VMInstruction> pushStatic = string("push ")
+                .<VMInstruction>map(VMInstruction.PushTemp::new);
+        var pushStatic = string("push ")
                 .skipAnd(string("static "))
                 .skipAnd(number())
-                .map(i -> new VMInstruction.PushStatic(name, i));
-        Lexer<VMInstruction> pushPointer = string("pointer ")
+                .<VMInstruction>map(i -> new VMInstruction.PushStatic(name, i));
+        var pushPointer = string("pointer ")
                 .skipAnd(number())
-                .map(VMInstruction.PushPointer::new);
-        Lexer<VMInstruction> push = string("push ").skipAnd(pushConstant.or(pushSegment).or(pushTemp).or(pushStatic).or(pushPointer));
-        Lexer<VMInstruction> popSegment = regex("[a-z]+\\s")
+                .<VMInstruction>map(VMInstruction.PushPointer::new);
+        var push = string("push ").skipAnd(pushConstant.or(pushSegment).or(pushTemp).or(pushStatic).or(pushPointer));
+        var popSegment = regex("[a-z]+\\s")
                 .map(VMInstruction.Segment::from)
                 .andThen(number())
-                .map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
-        Lexer<VMInstruction> popTemp = string("temp ")
+                .<VMInstruction>map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
+        var popTemp = string("temp ")
                 .skipAnd(number())
-                .map(VMInstruction.PopTemp::new);
-        Lexer<VMInstruction> popStatic = string("static ")
+                .<VMInstruction>map(VMInstruction.PopTemp::new);
+        var popStatic = string("static ")
                 .skipAnd(number())
-                .map(i -> new VMInstruction.PopStatic(name, i));
-        Lexer<VMInstruction> popPointer = string("pointer ")
+                .<VMInstruction>map(i -> new VMInstruction.PopStatic(name, i));
+        var popPointer = string("pointer ")
                 .skipAnd(number())
-                .map(VMInstruction.PopPointer::new);
-        Lexer<VMInstruction> pop = string("pop ").skipAnd(popSegment.or(popTemp).or(popStatic).or(popPointer));
-        Lexer<VMInstruction> arithmetic = regex("\\w{2,3}")
+                .<VMInstruction>map(VMInstruction.PopPointer::new);
+        var pop = string("pop ").skipAnd(popSegment.or(popTemp).or(popStatic).or(popPointer));
+        var arithmetic = regex("\\w{2,3}")
                 .map(this::from);
         lexer = push.or(pop).or(arithmetic).andSkip(eol().or(comment.map(VMInstruction::toString))).or(comment)
                 .repeating()

@@ -13,41 +13,39 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
     public VMLexer(String name) {
         var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*")).andSkip(eol())
                 .<VMInstruction>map(ignored -> new VMInstruction.Null());
-        var pushConstant = string("constant ")
+        lexer = string("push ").skipAnd(string("constant ")
                 .skipAnd(number())
-                .<VMInstruction>map(VMInstruction.PushConstant::new);
-        var pushSegment = regex("[a-z]+\\s")
-                .map(VMInstruction.Segment::from)
-                .andThen(number())
-                .<VMInstruction>map(p -> new VMInstruction.PushSegment(p.left(), p.right()));
-        var pushTemp = string("temp ")
-                .skipAnd(number())
-                .<VMInstruction>map(VMInstruction.PushTemp::new);
-        var pushStatic = string("push ")
-                .skipAnd(string("static "))
-                .skipAnd(number())
-                .<VMInstruction>map(i -> new VMInstruction.PushStatic(name, i));
-        var pushPointer = string("pointer ")
-                .skipAnd(number())
-                .<VMInstruction>map(VMInstruction.PushPointer::new);
-        var push = string("push ").skipAnd(pushConstant.or(pushSegment).or(pushTemp).or(pushStatic).or(pushPointer));
-        var popSegment = regex("[a-z]+\\s")
-                .map(VMInstruction.Segment::from)
-                .andThen(number())
-                .<VMInstruction>map(p -> new VMInstruction.PopSegment(p.left(), p.right()));
-        var popTemp = string("temp ")
-                .skipAnd(number())
-                .<VMInstruction>map(VMInstruction.PopTemp::new);
-        var popStatic = string("static ")
-                .skipAnd(number())
-                .<VMInstruction>map(i -> new VMInstruction.PopStatic(name, i));
-        var popPointer = string("pointer ")
-                .skipAnd(number())
-                .<VMInstruction>map(VMInstruction.PopPointer::new);
-        var pop = string("pop ").skipAnd(popSegment.or(popTemp).or(popStatic).or(popPointer));
-        var arithmetic = regex("\\w{2,3}")
-                .map(this::from);
-        lexer = push.or(pop).or(arithmetic).andSkip(eol().or(comment.map(VMInstruction::toString))).or(comment)
+                .<VMInstruction>map(VMInstruction.PushConstant::new)
+                .or(regex("[a-z]+\\s")
+                        .map(VMInstruction.Segment::from)
+                        .andThen(number())
+                        .map(p -> new VMInstruction.PushSegment(p.left(), p.right())))
+                .or(string("temp ")
+                        .skipAnd(number())
+                        .map(VMInstruction.PushTemp::new))
+                .or(string("static ")
+                        .skipAnd(number())
+                        .map(i -> new VMInstruction.PushStatic(name, i)))
+                .or(string("pointer ")
+                        .skipAnd(number())
+                        .map(VMInstruction.PushPointer::new)))
+                .or(string("pop ").skipAnd(regex("[a-z]+\\s")
+                        .map(VMInstruction.Segment::from)
+                        .andThen(number())
+                        .<VMInstruction>map(p1 -> new VMInstruction.PopSegment(p1.left(), p1.right()))
+                        .or(string("temp ")
+                                .skipAnd(number())
+                                .map(VMInstruction.PopTemp::new))
+                        .or(string("static ")
+                                .skipAnd(number())
+                                .map(i1 -> new VMInstruction.PopStatic(name, i1)))
+                        .or(string("pointer ")
+                                .skipAnd(number())
+                                .map(VMInstruction.PopPointer::new))))
+                .or(regex("\\w{2,3}")
+                        .map(this::arithmeticFrom))
+                .andSkip(eol().or(comment.map(VMInstruction::toString)))
+                .or(comment)
                 .repeating()
                 .andSkip(eof());
     }
@@ -58,7 +56,7 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
         return lexer.tryParse(stripped);
     }
 
-    private VMInstruction from(String name) {
+    private VMInstruction arithmeticFrom(String name) {
         return switch (name) {
             case "add" -> new VMInstruction.Add();
             case "sub" -> new VMInstruction.Subtract();

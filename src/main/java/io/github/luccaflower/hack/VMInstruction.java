@@ -1,18 +1,46 @@
 package io.github.luccaflower.hack;
 
-public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.And, VMInstruction.Equal, VMInstruction.GreaterThan, VMInstruction.LessThan, VMInstruction.Negative, VMInstruction.Not, VMInstruction.Null, VMInstruction.Or, VMInstruction.PopPointer, VMInstruction.PopSegment, VMInstruction.PopStatic, VMInstruction.PopTemp, VMInstruction.PushConstant, VMInstruction.PushPointer, VMInstruction.PushSegment, VMInstruction.PushStatic, VMInstruction.PushTemp, VMInstruction.Subtract {
+import javax.print.attribute.standard.PrinterMessageFromOperator;
+
+public interface VMInstruction {
+
+    record Label(String name) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    (%s)
+                    """.formatted(name);
+        }
+    }
+
+    record GoTo(String name) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    @%s
+                    0;JMP
+                    """.formatted(name);
+        }
+    }
+
+    record IfGoTo(String name) implements VMInstruction {
+        @Override
+        public String toString() {
+            return """
+                    %s
+                    @%s
+                    D;JNE
+                    """.formatted(new Pop(), name);
+        }
+    }
     record PushConstant(short val) implements VMInstruction {
         @Override
         public String toString() {
             return """
                     @%d
                     D=A
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.formatted(val);
+                    %s
+                    """.formatted(val, new Push());
         }
     }
 
@@ -25,12 +53,8 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     @%s
                     A=M+D
                     D=M
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.formatted(val, segment);
+                    %s
+                    """.formatted(val, segment, new Push());
         }
     }
 
@@ -45,13 +69,11 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     D=A
                     @R13
                     M=D
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     A=M
                     M=D
-                    """.formatted(val, segment);
+                    """.formatted(val, segment, new Pop());
         }
     }
 
@@ -77,12 +99,8 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
             return """
                     @R%d
                     D=M
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.formatted(5+val);
+                    %s
+                    """.formatted(5+val, new Push());
         }
     }
 
@@ -90,12 +108,10 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R%d
                     M=D
-                    """.formatted(5+val);
+                    """.formatted(new Pop(), 5+val);
         }
     }
     record PushStatic(String name, short val) implements VMInstruction {
@@ -104,12 +120,8 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
             return """
                     @%s.%d
                     D=M
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.formatted(name, val);
+                    %s
+                    """.formatted(name, val, new Push());
         }
     }
 
@@ -117,12 +129,10 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @%s.%d
                     M=D
-                    """.formatted(name, val);
+                    """.formatted(new Pop(), name, val);
         }
     }
 
@@ -133,12 +143,8 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
             return """
                     @%d
                     D=M
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.formatted(3+val);
+                    %s
+                    """.formatted(3+val, new Push());
         }
     }
 
@@ -146,12 +152,10 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @%d
                     M=D
-                    """.formatted(3+val);
+                    """.formatted(new Pop(), 3+val);
         }
     }
 
@@ -159,15 +163,13 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @SP
                     AM=M-1
                     M=M+D
                     @SP
                     M=M+1
-                    """;
+                    """.formatted(new Pop());
         }
     }
 
@@ -175,15 +177,13 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @SP
                     AM=M-1
                     M=M-D
                     @SP
                     M=M+1
-                    """;
+                    """.formatted(new Pop());
         }
     }
 
@@ -205,15 +205,13 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @SP
                     AM=M-1
                     M=M&D
                     @SP
                     M=M+1
-                    """;
+                    """.formatted(new Pop());
         }
     }
 
@@ -221,15 +219,13 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @SP
                     AM=M-1
                     M=M|D
                     @SP
                     M=M+1
-                    """;
+                    """.formatted(new Pop());
         }
     }
 
@@ -237,14 +233,10 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     M=D
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     D=D-M
                     @EQUAL_{COUNT}
@@ -258,26 +250,19 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     (NOT_EQUAL_{COUNT})
                     D=0
                     (END_EQUAL_{COUNT})
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.replace("{COUNT}", String.valueOf(count));
+                    %s
+                    """.replace("{COUNT}", String.valueOf(count))
+                    .formatted(new Pop(), new Pop(), new Push());
         }
     }
     record GreaterThan(int count) implements VMInstruction{
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     M=D
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     D=D-M
                     @GT_{COUNT}
@@ -291,26 +276,19 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     (NOT_GT_{COUNT})
                     D=0
                     (END_GT_{COUNT})
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.replace("{COUNT}", String.valueOf(count));
+                    %s
+                    """.replace("{COUNT}", String.valueOf(count))
+                    .formatted(new Pop(), new Pop(), new Push());
         }
     }
     record LessThan(int count) implements VMInstruction{
         @Override
         public String toString() {
             return """
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     M=D
-                    @SP
-                    AM=M-1
-                    D=M
+                    %s
                     @R13
                     D=D-M
                     @LT_{COUNT}
@@ -324,12 +302,9 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
                     (NOT_LT_{COUNT})
                     D=0
                     (END_LT_{COUNT})
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """.replace("{COUNT}", String.valueOf(count));
+                    %s
+                    """.replace("{COUNT}", String.valueOf(count))
+                    .formatted(new Pop(), new Pop(), new Push());
         }
     }
     record Null() implements VMInstruction {
@@ -351,4 +326,27 @@ public sealed interface VMInstruction permits VMInstruction.Add, VMInstruction.A
         }
     }
 
+    record Pop() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    """;
+        }
+    }
+
+    record Push() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """;
+        }
+    }
 }

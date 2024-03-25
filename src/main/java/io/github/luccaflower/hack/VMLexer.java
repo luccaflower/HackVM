@@ -1,20 +1,21 @@
 package io.github.luccaflower.hack;
 
 import java.util.Queue;
+import java.util.stream.Collectors;
 
 import static io.github.luccaflower.hack.Lexer.*;
 import static io.github.luccaflower.hack.Lexer.string;
 
 public class VMLexer implements Lexer<Queue<VMInstruction>> {
+    public static final String LABEL_PATTERN = "[a-zA-Z_\\-0-9]+";
     private int eqCount = 0;
     private int ltCount = 0;
     private int gtCount = 0;
     private final Lexer<Queue<VMInstruction>> lexer;
     public VMLexer(String name) {
-        var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*")).andSkip(eol())
+        var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*").andSkip(eol()))
                 .<VMInstruction>map(ignored -> new VMInstruction.Null());
-        lexer = string("push ").skipAnd(string("constant ")
-                .skipAnd(number())
+        lexer = string("push ").skipAnd(string("constant ").skipAnd(number())
                 .<VMInstruction>map(VMInstruction.PushConstant::new)
                 .or(regex("[a-z]+\\s")
                         .map(VMInstruction.Segment::from)
@@ -44,6 +45,15 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
                                 .map(VMInstruction.PopPointer::new))))
                 .or(regex("\\w{2,3}")
                         .map(this::arithmeticFrom))
+                .or(string("label ")
+                        .skipAnd(regex(LABEL_PATTERN))
+                        .map(VMInstruction.Label::new))
+                .or(string("goto ")
+                        .skipAnd(regex(LABEL_PATTERN))
+                        .map(VMInstruction.GoTo::new))
+                .or(string("if-goto ")
+                        .skipAnd(regex(LABEL_PATTERN))
+                        .map(VMInstruction.IfGoTo::new))
                 .andSkip(eol().or(comment.map(VMInstruction::toString)))
                 .or(comment)
                 .repeating()
@@ -52,7 +62,12 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
 
     @Override
     public Parsed<Queue<VMInstruction>> tryParse(CharSequence in) throws ParseException {
-        var stripped = in.toString().strip();
+        var stripped = in.toString()
+                .replace("\t", "")
+                .lines()
+                .filter(l -> !l.isBlank())
+                .map(String::strip)
+                .collect(Collectors.joining("\n"));
         return lexer.tryParse(stripped);
     }
 

@@ -1,9 +1,35 @@
 package io.github.luccaflower.hack;
 
-import javax.print.attribute.standard.PrinterMessageFromOperator;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public interface VMInstruction {
 
+    record Pop() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    AM=M-1
+                    D=M
+                    """;
+        }
+    }
+
+    record Push() {
+        @Override
+        public String toString() {
+            return """
+                    @SP
+                    A=M
+                    M=D
+                    @SP
+                    M=M+1
+                    """;
+        }
+    }
     record Label(String name) implements VMInstruction {
         @Override
         public String toString() {
@@ -307,12 +333,6 @@ public interface VMInstruction {
                     .formatted(new Pop(), new Pop(), new Push());
         }
     }
-    record Null() implements VMInstruction {
-        @Override
-        public String toString() {
-            return "";
-        }
-    }
     record Not() implements VMInstruction {
         @Override
         public String toString() {
@@ -326,27 +346,22 @@ public interface VMInstruction {
         }
     }
 
-    record Pop() {
+    record DefineFunction(String name, int locals) implements VMInstruction {
         @Override
         public String toString() {
-            return """
-                    @SP
-                    AM=M-1
-                    D=M
-                    """;
+            var label = new Label(name);
+            return label.toString().concat("\n")
+                    .concat(IntStream.range(0, locals())
+                            .mapToObj(i -> List.of(new PushConstant((short)0), new PopSegment(Segment.LCL, (short) i)))
+                            .flatMap(Collection::stream)
+                            .map(VMInstruction::toString)
+                            .collect(Collectors.joining("\n")));
         }
     }
-
-    record Push() {
+    record Null() implements VMInstruction {
         @Override
         public String toString() {
-            return """
-                    @SP
-                    A=M
-                    M=D
-                    @SP
-                    M=M+1
-                    """;
+            return "";
         }
     }
 }

@@ -30,4 +30,16 @@ class VMLexerTest {
         assertThat(lexer.parse("add //stuff")).first().isEqualTo(new VMInstruction.Add());
     }
 
+    @Test
+    void labelAfterFunctionPrependsFunctionToLabel() throws Lexer.ParseException {
+        var input = """
+                function test 2
+                label name
+                """;
+        Queue<VMInstruction> result = lexer.parse(input);
+        result.remove();
+
+        assertThat(result.remove()).isEqualTo(new VMInstruction.Label("thing.test$name"));
+    }
+
 }

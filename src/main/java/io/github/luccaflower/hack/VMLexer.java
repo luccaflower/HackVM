@@ -11,6 +11,7 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
     private int eqCount = 0;
     private int ltCount = 0;
     private int gtCount = 0;
+    private FunctionState functionState = new NoFunction();
     private final Lexer<Queue<VMInstruction>> lexer;
     public VMLexer(String name) {
         var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*").andSkip(eol()))
@@ -47,13 +48,23 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
                         .map(this::arithmeticFrom))
                 .or(string("label ")
                         .skipAnd(regex(LABEL_PATTERN))
+                        .map(n -> functionState.toString().concat(n))
                         .map(VMInstruction.Label::new))
                 .or(string("goto ")
                         .skipAnd(regex(LABEL_PATTERN))
+                        .map(n -> functionState.toString().concat(n))
                         .map(VMInstruction.GoTo::new))
                 .or(string("if-goto ")
                         .skipAnd(regex(LABEL_PATTERN))
+                        .map(n -> functionState.toString().concat(n))
                         .map(VMInstruction.IfGoTo::new))
+                .or(string("function ")
+                        .skipAnd(regex(LABEL_PATTERN).andSkip(string(" ")))
+                        .andThen(number())
+                        .map(p -> {
+                            this.functionState = this.functionState.define(name, p.left());
+                            return new VMInstruction.DefineFunction(p.left(), p.right());
+                        }))
                 .andSkip(eol().or(comment.map(VMInstruction::toString)))
                 .or(comment)
                 .repeating()
@@ -85,4 +96,45 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
             default -> throw new IllegalArgumentException("Unexpected value: " + name);
         };
     }
+
+    private record NoFunction() implements FunctionState {
+        @Override
+        public FunctionState define(String file, String name) {
+            return new Function(file, name);
+        }
+
+        @Override
+        public FunctionState doReturn() {
+            throw new IllegalStateException("return without function not allowed");
+        }
+
+        @Override
+        public String toString() {
+            return "";
+        }
+
+    }
+    private record Function(String file, String name) implements FunctionState {
+        @Override
+        public FunctionState define(String file, String name) {
+            throw new IllegalStateException("Cannot nest functions");
+        }
+
+        @Override
+        public FunctionState doReturn() {
+            return new NoFunction();
+        }
+
+        @Override
+        public String toString() {
+            return "%s.%s$".formatted(file, name);
+        }
+
+    }
+
+    private interface FunctionState {
+        FunctionState define(String file, String name);
+        FunctionState doReturn();
+    }
+
 }

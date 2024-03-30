@@ -4,12 +4,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Queue;
 
-import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class VMLexerTest {
+class VMParserTest {
 
-    Lexer<Queue<VMInstruction>> lexer = new VMLexer("thing");
+    Lexer<Queue<VMInstruction>> lexer = new VMParser("thing");
     @Test
     void parsePushConst() throws Lexer.ParseException {
         assertThat(lexer.parse("push constant 1")).first().isEqualTo(new VMInstruction.PushConstant((short) 1));

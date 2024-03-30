@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public interface VMInstruction {
 
@@ -350,12 +351,101 @@ public interface VMInstruction {
         @Override
         public String toString() {
             var label = new Label(name);
-            return label.toString().concat("\n")
+            return label.toString()
+                    .concat("\n")
                     .concat(IntStream.range(0, locals())
                             .mapToObj(i -> List.of(new PushConstant((short)0), new PopSegment(Segment.LCL, (short) i)))
                             .flatMap(Collection::stream)
                             .map(VMInstruction::toString)
                             .collect(Collectors.joining("\n")));
+        }
+    }
+
+    record Return() implements VMInstruction {
+        @Override
+        public String toString() {
+            var returnVal = new PopSegment(Segment.ARG, (short) 0).toString();
+            var repositionSP = """
+                    @ARG
+                    A=M+1
+                    D=A
+                    @SP
+                    M=D
+                    """;
+            var restoreSegmentPointers = """
+                    @LCL
+                    A=M-1
+                    @THAT
+                    M=D
+                    @2
+                    D=A
+                    @LCL
+                    A=M-D
+                    @THIS
+                    M=D
+                    @3
+                    D=A
+                    @LCL
+                    D=M-D
+                    @ARG
+                    M=D
+                    @4
+                    D=A
+                    @LCL
+                    M=M-D
+                    """;
+            var gotoReturn = """
+                    @5
+                    D=A
+                    @LCL
+                    A=M-D
+                    A=M
+                    0;JMP
+                    """;
+            return String.join("\n", returnVal, repositionSP, restoreSegmentPointers, gotoReturn);
+        }
+
+
+    }
+
+    record CallFunction(String name, int args, String returnLabel) implements VMInstruction {
+        @Override
+        public String toString() {
+            var popToArg =  IntStream.range(0, args)
+                    .mapToObj(i -> new PopSegment(Segment.LCL, (short) i))
+                    .map(VMInstruction::toString)
+                    .collect(Collectors.joining("\n"));
+            var saveReturn = """
+                    @%s
+                    D=A
+                    %s
+                    """.formatted(returnLabel, new Push());
+            var saveFrame = """
+                    @LCL
+                    D=M
+                    %s
+                    @ARG
+                    D=M
+                    %s
+                    @THIS
+                    D=M
+                    %s
+                    @THAT
+                    D=M
+                    %s
+                    """.formatted(new Push(), new Push(), new Push(), new Push());
+            var reposition = """
+                    @SP
+                    D=M
+                    @LCL
+                    M=D
+                    @%d
+                    D=D-A
+                    @ARG
+                    M=D
+                    """.formatted(args + 5);
+            var goTo = new GoTo(name).toString();
+            return String.join("\n", popToArg, saveReturn, saveFrame, reposition, goTo);
         }
     }
     record Null() implements VMInstruction {

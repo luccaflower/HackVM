@@ -1,19 +1,22 @@
 package io.github.luccaflower.hack;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
 import static io.github.luccaflower.hack.Lexer.*;
 import static io.github.luccaflower.hack.Lexer.string;
 
-public class VMLexer implements Lexer<Queue<VMInstruction>> {
+public class VMParser implements Lexer<Queue<VMInstruction>> {
     public static final String LABEL_PATTERN = "[a-zA-Z_\\-0-9]+";
     private int eqCount = 0;
     private int ltCount = 0;
     private int gtCount = 0;
     private FunctionState functionState = new NoFunction();
     private final Lexer<Queue<VMInstruction>> lexer;
-    public VMLexer(String name) {
+    private final Map<String, Integer> returnLabels = new HashMap<>();
+    public VMParser(String name) {
         var comment = regex("\\s*").skipAnd(string("//")).skipAnd(regex(".*").andSkip(eol()))
                 .<VMInstruction>map(ignored -> new VMInstruction.Null());
         lexer = string("push ").skipAnd(string("constant ").skipAnd(number())
@@ -64,6 +67,18 @@ public class VMLexer implements Lexer<Queue<VMInstruction>> {
                         .map(p -> {
                             this.functionState = this.functionState.define(name, p.left());
                             return new VMInstruction.DefineFunction(p.left(), p.right());
+                        }))
+                .or(string("call ")
+                        .skipAnd(regex(LABEL_PATTERN).andSkip(string(" ")))
+                        .andThen(number())
+                        .map(p -> {
+                            var count = returnLabels.merge(p.left(), 0, (n, c) -> c + 1);
+                            return new VMInstruction.CallFunction(p.left(), p.right(), "%s.ret.%d".formatted(p.left(), count));
+                        }))
+                .or(string("return")
+                        .map(ignored -> {
+                            functionState = functionState.doReturn();
+                            return new VMInstruction.Return();
                         }))
                 .andSkip(eol().or(comment.map(VMInstruction::toString)))
                 .or(comment)

@@ -353,9 +353,9 @@ public interface VMInstruction {
             var label = new Label(name);
             return label.toString()
                     .concat("\n")
-                    .concat(IntStream.range(0, locals())
-                            .mapToObj(i -> List.of(new PushConstant((short)0), new PopSegment(Segment.LCL, (short) i)))
-                            .flatMap(Collection::stream)
+                    .concat(IntStream.range(0, locals)
+                            .mapToObj(i -> Stream.of(new PushConstant((short) 0), new PopSegment(Segment.LCL, (short) i)))
+                            .flatMap(s -> s)
                             .map(VMInstruction::toString)
                             .collect(Collectors.joining("\n")));
         }
@@ -372,37 +372,49 @@ public interface VMInstruction {
                     @SP
                     M=D
                     """;
+            var saveReturnAddress = """
+                    @5
+                    D=A
+                    @LCL
+                    A=M-D
+                    D=M
+                    @R14
+                    M=D
+                    """;
             var restoreSegmentPointers = """
                     @LCL
                     A=M-1
+                    D=M
                     @THAT
                     M=D
                     @2
                     D=A
                     @LCL
                     A=M-D
+                    D=M
                     @THIS
                     M=D
                     @3
                     D=A
                     @LCL
-                    D=M-D
+                    A=M-D
+                    D=M
                     @ARG
                     M=D
                     @4
                     D=A
                     @LCL
-                    M=M-D
+                    A=M-D
+                    D=M
+                    @LCL
+                    M=D
                     """;
             var gotoReturn = """
-                    @5
-                    D=A
-                    @LCL
-                    A=M-D
+                    @R14
                     A=M
                     0;JMP
                     """;
-            return String.join("\n", returnVal, repositionSP, restoreSegmentPointers, gotoReturn);
+            return String.join("\n", saveReturnAddress, returnVal, repositionSP, restoreSegmentPointers, gotoReturn);
         }
 
 
@@ -411,10 +423,6 @@ public interface VMInstruction {
     record CallFunction(String name, int args, String returnLabel) implements VMInstruction {
         @Override
         public String toString() {
-            var popToArg =  IntStream.range(0, args)
-                    .mapToObj(i -> new PopSegment(Segment.LCL, (short) i))
-                    .map(VMInstruction::toString)
-                    .collect(Collectors.joining("\n"));
             var saveReturn = """
                     @%s
                     D=A
@@ -437,15 +445,17 @@ public interface VMInstruction {
             var reposition = """
                     @SP
                     D=M
-                    @LCL
-                    M=D
                     @%d
                     D=D-A
                     @ARG
                     M=D
+                    @SP
+                    D=M
+                    @LCL
+                    M=D
                     """.formatted(args + 5);
-            var goTo = new GoTo(name).toString();
-            return String.join("\n", popToArg, saveReturn, saveFrame, reposition, goTo);
+            var goTo = String.join("\n",  new GoTo(name).toString(), new Label(returnLabel).toString());
+            return String.join("\n", saveReturn, saveFrame, reposition, goTo);
         }
     }
     record Null() implements VMInstruction {

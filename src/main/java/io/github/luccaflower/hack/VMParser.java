@@ -9,7 +9,7 @@ import static io.github.luccaflower.hack.Lexer.*;
 import static io.github.luccaflower.hack.Lexer.string;
 
 public class VMParser implements Lexer<Queue<VMInstruction>> {
-    public static final String LABEL_PATTERN = "[a-zA-Z_\\-0-9]+";
+    public static final String LABEL_PATTERN = "[a-zA-Z._\\-0-9]+";
     private int eqCount = 0;
     private int ltCount = 0;
     private int gtCount = 0;
@@ -73,13 +73,10 @@ public class VMParser implements Lexer<Queue<VMInstruction>> {
                         .andThen(number())
                         .map(p -> {
                             var count = returnLabels.merge(p.left(), 0, (n, c) -> c + 1);
-                            return new VMInstruction.CallFunction(p.left(), p.right(), "%s.ret.%d".formatted(p.left(), count));
+                            return new VMInstruction.CallFunction(p.left(), p.right(), "%s$ret.%s.%d".formatted(p.left(), name, count));
                         }))
                 .or(string("return")
-                        .map(ignored -> {
-                            functionState = functionState.doReturn();
-                            return new VMInstruction.Return();
-                        }))
+                        .map(ignored -> new VMInstruction.Return()))
                 .andSkip(eol().or(comment.map(VMInstruction::toString)))
                 .or(comment)
                 .repeating()
@@ -119,27 +116,12 @@ public class VMParser implements Lexer<Queue<VMInstruction>> {
         }
 
         @Override
-        public FunctionState doReturn() {
-            throw new IllegalStateException("return without function not allowed");
-        }
-
-        @Override
         public String toString() {
             return "";
         }
 
     }
     private record Function(String file, String name) implements FunctionState {
-        @Override
-        public FunctionState define(String file, String name) {
-            throw new IllegalStateException("Cannot nest functions");
-        }
-
-        @Override
-        public FunctionState doReturn() {
-            return new NoFunction();
-        }
-
         @Override
         public String toString() {
             return "%s.%s$".formatted(file, name);
@@ -148,8 +130,9 @@ public class VMParser implements Lexer<Queue<VMInstruction>> {
     }
 
     private interface FunctionState {
-        FunctionState define(String file, String name);
-        FunctionState doReturn();
+        default FunctionState define(String file, String name) {
+            return new Function(file, name);
+        }
     }
 
 }
